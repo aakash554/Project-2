@@ -6,6 +6,13 @@ pragma solidity ^0.8.9;
 contract Assessment {
     address payable public owner;
     uint256 public balance;
+    struct Transaction {
+        uint256 amount;
+        bool isDeposit;
+        uint256 timestamp;
+    }
+
+    Transaction[] public transactionHistory;
 
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
@@ -15,7 +22,15 @@ contract Assessment {
         balance = initBalance;
     }
 
-    function getBalance() public view returns(uint256){
+    function getTransactionHistory()
+        public
+        view
+        returns (Transaction[] memory)
+    {
+        return transactionHistory;
+    }
+
+    function getBalance() public view returns (uint256) {
         return balance;
     }
 
@@ -27,6 +42,9 @@ contract Assessment {
 
         // perform transaction
         balance += _amount;
+        
+        // update transaction history
+        transactionHistory.push(Transaction(_amount, true, block.timestamp));
 
         // assert transaction completed successfully
         assert(balance == _previousBalance + _amount);
@@ -50,6 +68,9 @@ contract Assessment {
 
         // withdraw the given amount
         balance -= _withdrawAmount;
+
+        // update transaction history
+        transactionHistory.push(Transaction(_withdrawAmount, false, block.timestamp));
 
         // assert the balance is correct
         assert(balance == (_previousBalance - _withdrawAmount));
