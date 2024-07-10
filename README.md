@@ -31,6 +31,7 @@ Before you begin, ensure you have met the following requirements:
 - **Deposit Ether**: Enter the amount of Ether you want to deposit and click "Deposit ETH".
 - **Withdraw Ether**: Enter the amount of Ether you want to withdraw and click "Withdraw ETH".
 - **View Balance**: The balance will be displayed on the page.
+- **Transaction History**: Gives the Transaction history
 
 ## Smart Contract Overview
 
