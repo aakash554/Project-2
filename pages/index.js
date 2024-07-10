@@ -1,32 +1,39 @@
-import {useState, useEffect} from "react";
-import {ethers} from "ethers";
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import atm_abi from "../artifacts/contracts/Assessment.sol/Assessment.json";
+import styles from '../styles/AtmStyles.module.css';  
 
 export default function HomePage() {
   const [ethWallet, setEthWallet] = useState(undefined);
   const [account, setAccount] = useState(undefined);
   const [atm, setATM] = useState(undefined);
   const [balance, setBalance] = useState(undefined);
+  const [transactions, setTransactions] = useState([]);
   const [depositValue, setdepositValue] = useState('');
   const [withdrawlValue, setwithdrawlValue] = useState('');
 
   const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
   const atmABI = atm_abi.abi;
 
-  const getWallet = async() => {
+  const updateTransactionHistory = (type, amount) => {
+    const newTransaction = { type, amount, timestamp: new Date().toLocaleString() };
+    setTransactions(prevTransactions => [newTransaction, ...prevTransactions]);
+  };
+
+  const getWallet = async () => {
     if (window.ethereum) {
       setEthWallet(window.ethereum);
     }
 
     if (ethWallet) {
-      const account = await ethWallet.request({method: "eth_accounts"});
+      const account = await ethWallet.request({ method: "eth_accounts" });
       handleAccount(account);
     }
   }
 
   const handleAccount = (account) => {
     if (account) {
-      console.log ("Account connected: ", account);
+      console.log("Account connected: ", account);
       setAccount(account);
     }
     else {
@@ -34,15 +41,15 @@ export default function HomePage() {
     }
   }
 
-  const connectAccount = async() => {
+  const connectAccount = async () => {
     if (!ethWallet) {
       alert('MetaMask wallet is required to connect');
       return;
     }
-  
+
     const accounts = await ethWallet.request({ method: 'eth_requestAccounts' });
     handleAccount(accounts);
-    
+
     // once wallet is set we can get a reference to our deployed contract
     getATMContract();
   };
@@ -51,7 +58,7 @@ export default function HomePage() {
     const provider = new ethers.providers.Web3Provider(ethWallet);
     const signer = provider.getSigner();
     const atmContract = new ethers.Contract(contractAddress, atmABI, signer);
- 
+
     setATM(atmContract);
   }
 
@@ -65,23 +72,34 @@ export default function HomePage() {
 
   const getBalance = async() => {
     if (atm) {
-      setBalance((await atm.getBalance()).toNumber());
+      try {
+        const balance = await atm.getBalance();
+        setBalance(balance.toNumber());
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+        // Log more details about the contract and connection
+        console.log("Contract address:", contractAddress);
+        console.log("Connected account:", account);
+        console.log("ATM contract object:", atm);
+      }
     }
   }
 
-  const deposit = async() => {
+  const deposit = async () => {
     if (atm) {
       let tx = await atm.deposit(depositValue);
       await tx.wait()
       getBalance();
+      updateTransactionHistory('Deposit', depositValue);
     }
   }
 
-  const withdraw = async() => {
+  const withdraw = async () => {
     if (atm) {
       let tx = await atm.withdraw(withdrawlValue);
       await tx.wait()
       getBalance();
+      updateTransactionHistory('Withdrawal', withdrawlValue);
     }
   }
 
@@ -99,95 +117,67 @@ export default function HomePage() {
     if (balance == undefined) {
       getBalance();
     }
-    
+
 
     return (
-      <div className="container">
-      <p>Your Account: {account}</p>
-      <p>Your Balance: {balance}</p>
-      <div className="input-container">
-        <label>
-          Enter amount to deposit:
-          <input
-            type="text"
-            value={depositValue}
-            onChange={handleDepositChange}
-          />
-        </label>
-        <button onClick={deposit}>Deposit  ETH</button>
+      <div className={styles.page}>
+        <main className={styles.container}>
+          <h1 className={styles.title}>Aakash's ATM</h1>
+          {!account ? (
+            <button className={styles.connectButton} onClick={connectAccount}>Connect Metamask Wallet</button>
+          ) : (
+            <>
+              <div className={styles.accountInfo}>
+                <p><strong>Account:</strong> {account}</p>
+                <p><strong>Balance:</strong> <span className={styles.balance}>{balance} ETH</span></p>
+              </div>
+              <div className={styles.inputContainer}>
+                <label className={styles.label} htmlFor="deposit-amount">Deposit Amount (ETH):</label>
+                <input
+                  id="deposit-amount"
+                  className={styles.input}
+                  type="text"
+                  value={depositValue}
+                  onChange={handleDepositChange}
+                  placeholder="Enter amount to deposit"
+                />
+                <button className={styles.button} onClick={deposit}>Deposit ETH</button>
+              </div>
+              <div className={styles.inputContainer}>
+                <label className={styles.label} htmlFor="withdraw-amount">Withdraw Amount (ETH):</label>
+                <input
+                  id="withdraw-amount"
+                  className={styles.input}
+                  type="text"
+                  value={withdrawlValue}
+                  onChange={handlewithdrawlChange}
+                  placeholder="Enter amount to withdraw"
+                />
+                <button className={styles.button} onClick={withdraw}>Withdraw ETH</button>
+              </div>
+              <div className={styles.transactionHistory}>
+                <h2>Transaction History</h2>
+                <ul className={styles.transactionList}>
+                  {transactions.map((tx, index) => (
+                    <li key={index} className={styles.transactionItem}>
+                      <strong>{tx.type}:</strong> {tx.amount} ETH - {tx.timestamp}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </main>
       </div>
-      <div className="input-container">
-        <label>
-          Enter amount to withdraw:
-          <input
-            type="text"
-            value={withdrawlValue}
-            onChange={handlewithdrawlChange}
-          />
-        </label>
-        <button onClick={withdraw}>Withdraw  ETH</button>
-      </div>
-      <style jsx>
-          {`
-          button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-.input-container {
-  margin-bottom: 20px;
-}
-
-input[type="text"] {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  margin-right: 10px;
-}
-
-input[type="text"]:focus {
-  outline: none;
-  border-color: #4CAF50;
-}
-          `}
-        </style>
-    </div>
-        
-      
-    )
+    );
   }
 
-  useEffect(() => {getWallet();}, []);
+  useEffect(() => { getWallet(); }, []);
 
   return (
     <main className="container">
       <header><h1>Welcome to the Aakash's ATM!</h1></header>
       {initUser()}
-      <style jsx>{`
-        
-
-.container {
-  margin: auto;
-  max-width: 600px;
-  padding: 20px;
-  background-color: #f0f0f0;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-
-}
-
-header {
-  margin-bottom: 20px;
-}
-
-
-
-      `}
-      </style>
     </main>
   )
 }
